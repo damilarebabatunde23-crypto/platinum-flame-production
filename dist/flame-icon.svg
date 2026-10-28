@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="flameGrad" x1="0%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#C2410C" />
+      <stop offset="40%" stop-color="#EA580C" />
+      <stop offset="70%" stop-color="#F97316" />
+      <stop offset="100%" stop-color="#FDE047" />
+    </linearGradient>
+    <linearGradient id="platGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="50%" stop-color="#CBD5E1" />
+      <stop offset="100%" stop-color="#64748B" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <rect width="100" height="100" rx="20" fill="#07080a" />
+  <circle cx="50" cy="50" r="44" stroke="url(#platGrad)" stroke-width="1.5" stroke-opacity="0.3" fill="none"/>
+  <!-- Outer Wings / Flame Crest -->
+  <path d="M50 14 C58 28 72 38 72 58 C72 74 61 84 50 86 C39 84 28 74 28 58 C28 38 42 28 50 14 Z" fill="url(#flameGrad)" filter="url(#glow)"/>
+  <!-- Inner Platinum Core -->
+  <path d="M50 32 C54 42 62 50 62 62 C62 70 56 76 50 78 C44 76 38 70 38 62 C38 50 46 42 50 32 Z" fill="#07080A" />
+  <path d="M50 40 C52.5 48 57 54 57 62 C57 67 53.5 71 50 72 C46.5 71 43 67 43 62 C43 54 47.5 48 50 40 Z" fill="url(#flameGrad)" />
+  <!-- Studio Star / Spark -->
+  <circle cx="50" cy="58" r="3" fill="#FFF" />
+</svg>

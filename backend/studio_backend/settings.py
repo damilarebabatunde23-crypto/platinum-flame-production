@@ -131,6 +131,7 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+WHITENOISE_MANIFEST_STRICT = False
 
 # Media files (Pitch decks, lookbooks, actor headshots, resumes)
 MEDIA_URL = '/media/'
