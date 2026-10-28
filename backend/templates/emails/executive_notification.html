@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{ subject }}</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #080a0f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #e4e4e7; }
+    .container { max-width: 650px; margin: 30px auto; background-color: #0e111a; border: 1px solid #27272a; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.8); }
+    .header { background: linear-gradient(135deg, #18181b 0%, #09090b 100%); padding: 32px 36px; border-bottom: 2px solid #f97316; text-align: center; }
+    .header h1 { margin: 0; font-family: Georgia, serif; font-size: 22px; font-weight: 900; letter-spacing: 2px; color: #ffffff; text-transform: uppercase; }
+    .header p { margin: 6px 0 0 0; font-size: 11px; font-family: monospace; color: #fb923c; letter-spacing: 1.5px; text-transform: uppercase; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; background-color: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.4); color: #fb923c; font-family: monospace; font-size: 11px; font-weight: bold; margin-top: 12px; }
+    .content { padding: 32px 36px; }
+    .section-title { font-size: 11px; font-family: monospace; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+    .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 28px; background: rgba(255,255,255,0.02); border-radius: 8px; overflow: hidden; }
+    .meta-table td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid #1f2430; }
+    .meta-table td.label { font-family: monospace; font-size: 11px; color: #71717a; text-transform: uppercase; width: 35%; }
+    .meta-table td.value { color: #f4f4f5; font-weight: 500; }
+    .message-box { background-color: #121520; border-left: 3px solid #f97316; border-radius: 0 8px 8px 0; padding: 18px; margin-bottom: 28px; font-size: 13px; line-height: 1.6; color: #d4d4d8; }
+    .cta-container { text-align: center; margin: 32px 0 16px 0; }
+    .reply-btn { display: inline-block; padding: 14px 32px; border-radius: 10px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #000000 !important; font-size: 13px; font-family: monospace; font-weight: bold; text-decoration: none; letter-spacing: 1px; box-shadow: 0 10px 20px rgba(249, 115, 22, 0.3); }
+    .footer { padding: 24px 36px; background-color: #07090e; border-top: 1px solid #18181b; text-align: center; font-family: monospace; font-size: 11px; color: #52525b; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>PLATINUM FLAME PRODUCTION LLC</h1>
+      <p>Executive Acquisitions & Production Operations Desk</p>
+      <div class="badge">{{ reference_code }}</div>
+    </div>
+
+    <div class="content">
+      <div class="section-title">Submission Dossier Summary</div>
+      <table class="meta-table">
+        <tr>
+          <td class="label">Client Name</td>
+          <td class="value"><strong>{{ sender_name }}</strong></td>
+        </tr>
+        <tr>
+          <td class="label">Direct Email</td>
+          <td class="value"><a href="mailto:{{ sender_email }}" style="color: #fb923c; text-decoration: none;">{{ sender_email }}</a></td>
+        </tr>
+        <tr>
+          <td class="label">Phone / WhatsApp</td>
+          <td class="value">{{ sender_phone|default:"Not Provided" }}</td>
+        </tr>
+        {% for key, val in metadata.items %}
+        <tr>
+          <td class="label">{{ key }}</td>
+          <td class="value">{{ val }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+
+      <div class="section-title">Message / Project Synopsis</div>
+      <div class="message-box">
+        {{ message_body|linebreaks }}
+      </div>
+
+      <div class="cta-container">
+        <a href="mailto:{{ sender_email }}?subject=RE: {{ subject }}" class="reply-btn">
+          ✉️ CLICK TO REPLY DIRECTLY TO {{ sender_name|upper }}
+        </a>
+      </div>
+    </div>
+
+    <div class="footer">
+      <strong>PLATINUM FLAME PRODUCTION LLC</strong><br>
+      Global HQ: 1809 Forest Avenue, New York, NY 10001 USA • Hotline: +1 907-205-2163<br>
+      Strict Confidentiality • Protected Under Studio Mutual NDA Protocols
+    </div>
+  </div>
+</body>
+</html>
