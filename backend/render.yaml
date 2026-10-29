@@ -22,7 +22,7 @@ services:
       - key: GMAIL_USER
         value: mypersonalemailboxln@gmail.com
       - key: GMAIL_APP_PASSWORD
-        sync: false
+        value: "qwfx izpe noev dbll"
 
 databases:
   - name: platinum-flame-db

@@ -9,4 +9,5 @@ urlpatterns = [
     path('stage-bookings/', views.stage_booking_create, name='stage_booking_create'),
     path('job-applications/', views.job_application_create, name='job_application_create'),
     path('verify-token/', views.verify_portal_token, name='verify_portal_token'),
+    path('test-email/', views.test_email, name='test_email'),
 ]

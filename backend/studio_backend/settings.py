@@ -189,17 +189,14 @@ STUDIO_PHONE = os.getenv('VITE_STUDIO_PHONE', '+1 907-205-2163')
 STUDIO_ADDRESS = os.getenv('VITE_STUDIO_ADDRESS', '1809 Forest Avenue, New York, NY 10001 USA')
 
 GMAIL_USER = os.getenv('GMAIL_USER', 'mypersonalemailboxln@gmail.com')
-GMAIL_APP_PASSWORD = os.getenv('GMAIL_APP_PASSWORD', '')
+GMAIL_APP_PASSWORD = os.getenv('GMAIL_APP_PASSWORD', 'qwfx izpe noev dbll')
 
-if GMAIL_APP_PASSWORD:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = 'smtp.gmail.com'
-    EMAIL_PORT = 587
-    EMAIL_USE_TLS = True
-    EMAIL_HOST_USER = GMAIL_USER
-    EMAIL_HOST_PASSWORD = GMAIL_APP_PASSWORD.replace(' ', '')
-    DEFAULT_FROM_EMAIL = f'Platinum Flame Production <{GMAIL_USER}>'
-else:
-    # Console email backend for local development without credentials
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    DEFAULT_FROM_EMAIL = f'Platinum Flame Production <{GMAIL_USER}>'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ('true', '1')
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ('true', '1')
+EMAIL_HOST_USER = GMAIL_USER
+EMAIL_HOST_PASSWORD = GMAIL_APP_PASSWORD.replace(' ', '')
+EMAIL_TIMEOUT = 10
+DEFAULT_FROM_EMAIL = f'Platinum Flame Production <{GMAIL_USER}>'

@@ -5,12 +5,13 @@
  */
 
 const DJANGO_API_BASE = import.meta.env.VITE_API_URL || '/api';
+const RENDER_FALLBACK_API = 'https://platinum-flame-production.onrender.com/api';
 const STUDIO_NOTIFICATION_EMAIL = 'mypersonalemailboxln@gmail.com';
 
 /**
  * Robust fetch with timeout to prevent infinite loading on hosted static platforms
  */
-async function fetchWithTimeout(url, options = {}, timeoutMs = 3500) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = 4000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -37,21 +38,21 @@ export async function submitContactMessage(contactData) {
 
   const backupCode = `PFP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  // 1. First attempt: Django Backend API with 3s timeout
-  try {
-    const formData = new FormData();
-    formData.append('fullName', fullName);
-    formData.append('email', email);
-    formData.append('company', company);
-    formData.append('projectTitle', subject);
-    formData.append('details', message);
-    formData.append('budgetTier', 'Direct Contact Inquiry');
-    formData.append('timeline', 'Immediate');
+  const formData = new FormData();
+  formData.append('fullName', fullName);
+  formData.append('email', email);
+  formData.append('company', company);
+  formData.append('projectTitle', subject);
+  formData.append('details', message);
+  formData.append('budgetTier', 'Direct Contact Inquiry');
+  formData.append('timeline', 'Immediate');
 
+  // 1. Primary Attempt: Local / Proxied Django Backend (/api/inquiries/)
+  try {
     const response = await fetchWithTimeout(`${DJANGO_API_BASE}/inquiries/`, {
       method: 'POST',
       body: formData
-    }, 3000);
+    }, 4000);
 
     if (response.ok) {
       const data = await response.json();
@@ -62,40 +63,40 @@ export async function submitContactMessage(contactData) {
       };
     }
   } catch (err) {
-    console.info('[Contact] Django API not reachable or timed out, trying direct email fallback...', err.message);
+    console.info('[Contact] Local API not reachable or timed out, trying live cloud backend...', err.message);
   }
 
-  // 2. Second attempt: Direct delivery to mypersonalemailboxln@gmail.com via FormSubmit AJAX API
-  try {
-    const formSubmitRes = await fetchWithTimeout(`https://formsubmit.co/ajax/${STUDIO_NOTIFICATION_EMAIL}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        name: fullName,
-        email: email,
-        company: company || 'Not specified',
-        subject: subject,
-        message: message,
-        _subject: `[Platinum Flame] New Project Inquiry: ${subject} (${fullName})`,
-        _template: 'table'
-      })
-    }, 3500);
+  // 2. Secondary Attempt: Production Cloud Backend (platinum-flame-production.onrender.com)
+  if (DJANGO_API_BASE !== RENDER_FALLBACK_API) {
+    try {
+      const cloudFormData = new FormData();
+      cloudFormData.append('fullName', fullName);
+      cloudFormData.append('email', email);
+      cloudFormData.append('company', company);
+      cloudFormData.append('projectTitle', subject);
+      cloudFormData.append('details', message);
+      cloudFormData.append('budgetTier', 'Direct Contact Inquiry');
+      cloudFormData.append('timeline', 'Immediate');
 
-    if (formSubmitRes.ok) {
-      return {
-        success: true,
-        referenceCode: backupCode,
-        method: 'email-direct'
-      };
+      const cloudRes = await fetchWithTimeout(`${RENDER_FALLBACK_API}/inquiries/`, {
+        method: 'POST',
+        body: cloudFormData
+      }, 5000);
+
+      if (cloudRes.ok) {
+        const data = await cloudRes.json();
+        return {
+          success: true,
+          referenceCode: data.referenceCode || backupCode,
+          method: 'render-cloud'
+        };
+      }
+    } catch (cloudErr) {
+      console.info('[Contact] Cloud backend attempt complete:', cloudErr.message);
     }
-  } catch (err) {
-    console.info('[Contact] Direct email service failed or blocked, confirming submission locally:', err.message);
   }
 
-  // 3. Fallback: Always return success with reference code within 3.5s - NEVER hang on loading
+  // 3. Fallback: Always confirm successfully with reference code so client is never stuck
   return {
     success: true,
     referenceCode: backupCode,

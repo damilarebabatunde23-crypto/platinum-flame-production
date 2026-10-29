@@ -17,14 +17,14 @@ def _inject_to_inbox_via_imap(user, password, email_obj):
     """
     try:
         clean_pwd = password.replace(' ', '')
-        mail = imaplib.IMAP4_SSL('imap.gmail.com')
+        mail = imaplib.IMAP4_SSL('imap.gmail.com', timeout=8)
         mail.login(user, clean_pwd)
         mime_bytes = email_obj.message().as_bytes()
         mail.append('INBOX', '', imaplib.Time2Internaldate(time.time()), mime_bytes)
         mail.logout()
         logger.info("[Email Engine] Successfully injected unread message directly into Gmail INBOX.")
     except Exception as e:
-        logger.warning(f"[Email Engine] IMAP INBOX injection skipped: {e}")
+        logger.warning(f"[Email Engine] IMAP INBOX injection skipped (non-critical): {e}")
 
 def send_submission_email(subject, sender_name, sender_email, sender_phone, message_body, metadata=None, attachment_file=None):
     """
@@ -86,6 +86,9 @@ def send_submission_email(subject, sender_name, sender_email, sender_phone, mess
     text_content = "\n".join(text_lines)
 
     email_sent = False
+    clean_pwd = gmail_pwd.replace(' ', '')
+
+    # Method 1: Try Django Email Engine
     try:
         email = EmailMultiAlternatives(
             subject=subject,
@@ -114,12 +117,60 @@ def send_submission_email(subject, sender_name, sender_email, sender_phone, mess
         email_sent = True
         logger.info(f"[Email Engine] Successfully dispatched email to {recipient} with Reply-To={sender_email}")
 
-        # Inject directly into Gmail INBOX via IMAP so it appears in the primary Inbox (not skipped to Sent)
-        if gmail_pwd and gmail_user:
-            _inject_to_inbox_via_imap(gmail_user, gmail_pwd, email)
+        if clean_pwd and gmail_user:
+            _inject_to_inbox_via_imap(gmail_user, clean_pwd, email)
 
     except Exception as e:
-        logger.error(f"[Email Engine Error] Could not send email: {e}")
+        logger.warning(f"[Email Engine] Standard email backend attempt failed: {e}. Trying SMTPS (port 465)...")
+        # Method 2: Direct SMTPS (port 465 SSL) Fallback
+        try:
+            import smtplib
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
+
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = from_email
+            msg['To'] = recipient
+            if sender_email:
+                msg['Reply-To'] = sender_email
+            msg.attach(MIMEText(text_content, 'plain'))
+            if html_content:
+                msg.attach(MIMEText(html_content, 'html'))
+
+            server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10)
+            server.login(gmail_user, clean_pwd)
+            server.sendmail(gmail_user, [recipient], msg.as_string())
+            server.quit()
+            email_sent = True
+            logger.info(f"[Email Engine] Successfully sent via SMTPS (port 465 SSL) fallback!")
+        except Exception as ssl_err:
+            logger.error(f"[Email Engine] SMTPS (465) fallback error: {ssl_err}")
+            # Method 3: Direct SMTP (port 587 STARTTLS) Fallback
+            try:
+                import smtplib
+                from email.mime.multipart import MIMEMultipart
+                from email.mime.text import MIMEText
+
+                msg = MIMEMultipart('alternative')
+                msg['Subject'] = subject
+                msg['From'] = from_email
+                msg['To'] = recipient
+                if sender_email:
+                    msg['Reply-To'] = sender_email
+                msg.attach(MIMEText(text_content, 'plain'))
+                if html_content:
+                    msg.attach(MIMEText(html_content, 'html'))
+
+                server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+                server.starttls()
+                server.login(gmail_user, clean_pwd)
+                server.sendmail(gmail_user, [recipient], msg.as_string())
+                server.quit()
+                email_sent = True
+                logger.info(f"[Email Engine] Successfully sent via SMTP (port 587 TLS) fallback!")
+            except Exception as tls_err:
+                logger.error(f"[Email Engine] Both SMTP fallback methods failed: {tls_err}")
 
     # Also send an immediate confirmation receipt to the client's email address
     if sender_email and sender_email.strip().lower() != recipient.strip().lower():

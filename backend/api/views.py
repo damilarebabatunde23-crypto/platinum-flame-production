@@ -1,6 +1,8 @@
 import random
+import threading
 from datetime import datetime
 from django.db import connection
+from django.conf import settings
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes, throttle_classes
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -15,6 +17,15 @@ from .serializers import (
     JobApplicationSerializer
 )
 from .email_service import send_submission_email
+
+def _dispatch_email_async(**kwargs):
+    """Run email dispatch in a background thread so the HTTP API never hangs or times out"""
+    try:
+        thread = threading.Thread(target=send_submission_email, kwargs=kwargs, daemon=True)
+        thread.start()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to start async email thread: {e}")
 
 def generate_ref_code(prefix="PFP"):
     year = datetime.now().year
@@ -101,8 +112,8 @@ def inquiry_create(request):
         attachment=attachment_file
     )
 
-    # Dispatch rich HTML email to studio owner with Reply-To set to sender
-    send_submission_email(
+    # Dispatch rich HTML email asynchronously so response is instant
+    _dispatch_email_async(
         subject=f"New Inquiry from {full_name} ({ref_code}): {project_title}",
         sender_name=full_name,
         sender_email=email,
@@ -166,7 +177,7 @@ def talent_create(request):
         bio_notes=bio_notes
     )
 
-    send_submission_email(
+    _dispatch_email_async(
         subject=f"New Casting Profile: {talent_name} - {category} ({ref_code})",
         sender_name=talent_name,
         sender_email=email,
@@ -219,7 +230,7 @@ def stage_booking_create(request):
         estimated_subtotal=subtotal
     )
 
-    send_submission_email(
+    _dispatch_email_async(
         subject=f"New Soundstage Hold Request: {stage_name} ({ref_code})",
         sender_name=client_name,
         sender_email=email,
@@ -271,7 +282,7 @@ def job_application_create(request):
         resume=resume_file
     )
 
-    send_submission_email(
+    _dispatch_email_async(
         subject=f"New Job Application from {full_name} for {job_title} ({ref_code})",
         sender_name=full_name,
         sender_email=email,
@@ -321,3 +332,52 @@ def verify_portal_token(request):
         if len(code) >= 6:
             return Response({'valid': True, 'token': code, 'clientName': 'Authorized Partner', 'tier': 'Studio Partner'})
         return Response({'valid': False, 'error': 'Invalid or expired studio security code.'}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'POST'])
+def test_email(request):
+    """
+    Diagnostic endpoint to verify SMTP delivery on Render / Production.
+    Tests both Port 465 (SMTPS SSL) and Port 587 (SMTP TLS).
+    """
+    recipient = getattr(settings, 'NOTIFICATION_RECIPIENT_EMAIL', 'mypersonalemailboxln@gmail.com')
+    user = getattr(settings, 'GMAIL_USER', 'mypersonalemailboxln@gmail.com')
+    pwd = getattr(settings, 'GMAIL_APP_PASSWORD', '').replace(' ', '')
+    results = {}
+
+    import smtplib
+    from email.mime.text import MIMEText
+
+    # Test Port 465 (SSL)
+    try:
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10)
+        server.login(user, pwd)
+        msg = MIMEText('Test email from Platinum Flame diagnostic test on Render (Port 465 SSL)')
+        msg['Subject'] = 'Diagnostic Test Email (Port 465 SSL)'
+        msg['From'] = user
+        msg['To'] = recipient
+        server.sendmail(user, [recipient], msg.as_string())
+        server.quit()
+        results['smtp_465_ssl'] = 'SUCCESS'
+    except Exception as e:
+        results['smtp_465_ssl'] = f'ERROR: {str(e)}'
+
+    # Test Port 587 (STARTTLS)
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+        server.starttls()
+        server.login(user, pwd)
+        msg = MIMEText('Test email from Platinum Flame diagnostic test on Render (Port 587 TLS)')
+        msg['Subject'] = 'Diagnostic Test Email (Port 587 TLS)'
+        msg['From'] = user
+        msg['To'] = recipient
+        server.sendmail(user, [recipient], msg.as_string())
+        server.quit()
+        results['smtp_587_tls'] = 'SUCCESS'
+    except Exception as e:
+        results['smtp_587_tls'] = f'ERROR: {str(e)}'
+
+    return Response({
+        'status': 'diagnostic_complete',
+        'recipient': recipient,
+        'results': results
+    })

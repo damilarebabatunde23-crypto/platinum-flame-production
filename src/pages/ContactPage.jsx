@@ -218,6 +218,15 @@ export default function ContactPage() {
                       Send Another Message
                     </button>
                     <a
+                      href={`mailto:mypersonalemailboxln@gmail.com?subject=${encodeURIComponent(formData.subject || 'Project Inquiry')}&body=${encodeURIComponent(
+                        `From: ${formData.name || ''}\nEmail: ${formData.email || ''}\nCompany: ${formData.company || 'N/A'}\nReference: ${referenceCode}\n\nMessage:\n${formData.message || ''}`
+                      )}`}
+                      className="w-full sm:w-auto px-6 py-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-medium text-sm transition flex items-center justify-center space-x-1.5"
+                    >
+                      <Mail className="w-4 h-4" />
+                      <span>Open in Email</span>
+                    </a>
+                    <a
                       href="tel:+19072052163"
                       className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium text-sm transition"
                     >
