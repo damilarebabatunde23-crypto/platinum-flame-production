@@ -376,6 +376,32 @@ def test_email(request):
     except Exception as e:
         results['smtp_587_tls'] = f'ERROR: {str(e)}'
 
+    # Test Resend HTTPS API (Port 443 - Open on Render)
+    resend_key = getattr(settings, 'RESEND_API_KEY', '') or os.getenv('RESEND_API_KEY', '')
+    if resend_key:
+        try:
+            import urllib.request
+            import json
+            req = urllib.request.Request(
+                'https://api.resend.com/emails',
+                data=json.dumps({
+                    'from': 'Platinum Flame Production <onboarding@resend.dev>',
+                    'to': [recipient],
+                    'subject': 'Diagnostic Test Email (Resend HTTPS API)',
+                    'text': 'Test email from Platinum Flame diagnostic test on Render via Resend HTTPS API.'
+                }).encode('utf-8'),
+                headers={
+                    'Authorization': f'Bearer {resend_key.strip()}',
+                    'Content-Type': 'application/json'
+                }
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                results['resend_https_443'] = f'SUCCESS (Status {resp.status})'
+        except Exception as e:
+            results['resend_https_443'] = f'ERROR: {str(e)}'
+    else:
+        results['resend_https_443'] = 'SKIPPED (RESEND_API_KEY not configured)'
+
     return Response({
         'status': 'diagnostic_complete',
         'recipient': recipient,

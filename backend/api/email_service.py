@@ -87,66 +87,76 @@ def send_submission_email(subject, sender_name, sender_email, sender_phone, mess
 
     email_sent = False
     clean_pwd = gmail_pwd.replace(' ', '')
+    resend_api_key = getattr(settings, 'RESEND_API_KEY', '') or os.getenv('RESEND_API_KEY', '')
 
-    # Method 1: Try Django Email Engine
-    try:
-        email = EmailMultiAlternatives(
-            subject=subject,
-            body=text_content,
-            from_email=from_email,
-            to=[recipient],
-            reply_to=[sender_email] if sender_email else None
-        )
-
-        if html_content:
-            email.attach_alternative(html_content, "text/html")
-
-        if attachment_file:
-            try:
-                if hasattr(attachment_file, 'seek'):
-                    attachment_file.seek(0)
-                file_bytes = attachment_file.read()
-                mime = getattr(attachment_file, 'content_type', 'application/octet-stream')
-                filename = getattr(attachment_file, 'name', 'attachment.pdf')
-                if file_bytes:
-                    email.attach(filename, file_bytes, mime)
-            except Exception as att_err:
-                logger.warning(f"Could not attach file: {att_err}")
-
-        email.send(fail_silently=False)
-        email_sent = True
-        logger.info(f"[Email Engine] Successfully dispatched email to {recipient} with Reply-To={sender_email}")
-
-        if clean_pwd and gmail_user:
-            _inject_to_inbox_via_imap(gmail_user, clean_pwd, email)
-
-    except Exception as e:
-        logger.warning(f"[Email Engine] Standard email backend attempt failed: {e}. Trying SMTPS (port 465)...")
-        # Method 2: Direct SMTPS (port 465 SSL) Fallback
+    # Method 0: Primary HTTP API via Resend (Port 443 HTTPS - NEVER blocked by cloud hosts like Render)
+    if resend_api_key:
         try:
-            import smtplib
-            from email.mime.multipart import MIMEMultipart
-            from email.mime.text import MIMEText
+            import urllib.request
+            import json
 
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = subject
-            msg['From'] = from_email
-            msg['To'] = recipient
+            payload = {
+                'from': 'Platinum Flame Production <onboarding@resend.dev>',
+                'to': [recipient],
+                'subject': subject,
+                'html': html_content or f"<pre style='font-family:sans-serif;'>{text_content}</pre>",
+                'text': text_content
+            }
             if sender_email:
-                msg['Reply-To'] = sender_email
-            msg.attach(MIMEText(text_content, 'plain'))
-            if html_content:
-                msg.attach(MIMEText(html_content, 'html'))
+                payload['reply_to'] = sender_email
 
-            server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10)
-            server.login(gmail_user, clean_pwd)
-            server.sendmail(gmail_user, [recipient], msg.as_string())
-            server.quit()
+            req = urllib.request.Request(
+                'https://api.resend.com/emails',
+                data=json.dumps(payload).encode('utf-8'),
+                headers={
+                    'Authorization': f'Bearer {resend_api_key.strip()}',
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'PlatinumFlame/2.0'
+                }
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status in (200, 201):
+                    logger.info(f"[Email Engine] Successfully dispatched email via Resend HTTPS API to {recipient}!")
+                    email_sent = True
+        except Exception as resend_err:
+            logger.error(f"[Email Engine] Resend API error: {resend_err}")
+
+    # Method 1: Try Django Email Engine (SMTP)
+    if not email_sent:
+        try:
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=from_email,
+                to=[recipient],
+                reply_to=[sender_email] if sender_email else None
+            )
+
+            if html_content:
+                email.attach_alternative(html_content, "text/html")
+
+            if attachment_file:
+                try:
+                    if hasattr(attachment_file, 'seek'):
+                        attachment_file.seek(0)
+                    file_bytes = attachment_file.read()
+                    mime = getattr(attachment_file, 'content_type', 'application/octet-stream')
+                    filename = getattr(attachment_file, 'name', 'attachment.pdf')
+                    if file_bytes:
+                        email.attach(filename, file_bytes, mime)
+                except Exception as att_err:
+                    logger.warning(f"Could not attach file: {att_err}")
+
+            email.send(fail_silently=False)
             email_sent = True
-            logger.info(f"[Email Engine] Successfully sent via SMTPS (port 465 SSL) fallback!")
-        except Exception as ssl_err:
-            logger.error(f"[Email Engine] SMTPS (465) fallback error: {ssl_err}")
-            # Method 3: Direct SMTP (port 587 STARTTLS) Fallback
+            logger.info(f"[Email Engine] Successfully dispatched email to {recipient} with Reply-To={sender_email}")
+
+            if clean_pwd and gmail_user:
+                _inject_to_inbox_via_imap(gmail_user, clean_pwd, email)
+
+        except Exception as e:
+            logger.warning(f"[Email Engine] Standard email backend attempt failed: {e}. Trying SMTPS (port 465)...")
+            # Method 2: Direct SMTPS (port 465 SSL) Fallback
             try:
                 import smtplib
                 from email.mime.multipart import MIMEMultipart
@@ -162,15 +172,39 @@ def send_submission_email(subject, sender_name, sender_email, sender_phone, mess
                 if html_content:
                     msg.attach(MIMEText(html_content, 'html'))
 
-                server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
-                server.starttls()
+                server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10)
                 server.login(gmail_user, clean_pwd)
                 server.sendmail(gmail_user, [recipient], msg.as_string())
                 server.quit()
                 email_sent = True
-                logger.info(f"[Email Engine] Successfully sent via SMTP (port 587 TLS) fallback!")
-            except Exception as tls_err:
-                logger.error(f"[Email Engine] Both SMTP fallback methods failed: {tls_err}")
+                logger.info(f"[Email Engine] Successfully sent via SMTPS (port 465 SSL) fallback!")
+            except Exception as ssl_err:
+                logger.error(f"[Email Engine] SMTPS (465) fallback error: {ssl_err}")
+                # Method 3: Direct SMTP (port 587 STARTTLS) Fallback
+                try:
+                    import smtplib
+                    from email.mime.multipart import MIMEMultipart
+                    from email.mime.text import MIMEText
+
+                    msg = MIMEMultipart('alternative')
+                    msg['Subject'] = subject
+                    msg['From'] = from_email
+                    msg['To'] = recipient
+                    if sender_email:
+                        msg['Reply-To'] = sender_email
+                    msg.attach(MIMEText(text_content, 'plain'))
+                    if html_content:
+                        msg.attach(MIMEText(html_content, 'html'))
+
+                    server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+                    server.starttls()
+                    server.login(gmail_user, clean_pwd)
+                    server.sendmail(gmail_user, [recipient], msg.as_string())
+                    server.quit()
+                    email_sent = True
+                    logger.info(f"[Email Engine] Successfully sent via SMTP (port 587 TLS) fallback!")
+                except Exception as tls_err:
+                    logger.error(f"[Email Engine] Both SMTP fallback methods failed: {tls_err}")
 
     # Also send an immediate confirmation receipt to the client's email address
     if sender_email and sender_email.strip().lower() != recipient.strip().lower():

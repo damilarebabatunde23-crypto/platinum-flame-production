@@ -200,3 +200,6 @@ EMAIL_HOST_USER = GMAIL_USER
 EMAIL_HOST_PASSWORD = GMAIL_APP_PASSWORD.replace(' ', '')
 EMAIL_TIMEOUT = 10
 DEFAULT_FROM_EMAIL = f'Platinum Flame Production <{GMAIL_USER}>'
+
+# Resend HTTPS API Key for cloud hosts (e.g. Render free tier which blocks SMTP ports)
+RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')

@@ -23,6 +23,8 @@ services:
         value: mypersonalemailboxln@gmail.com
       - key: GMAIL_APP_PASSWORD
         value: "qwfx izpe noev dbll"
+      - key: RESEND_API_KEY
+        sync: false
 
 databases:
   - name: platinum-flame-db

@@ -342,6 +342,23 @@ export default function ContactPage() {
                     </button>
                   </div>
 
+                  {/* Direct Contact Helper */}
+                  <div className="pt-1 text-center">
+                    <p className="text-xs text-gray-500 font-sans">
+                      Prefer direct email?{' '}
+                      <a
+                        href={`mailto:mypersonalemailboxln@gmail.com?subject=${encodeURIComponent(
+                          formData.subject || 'Platinum Flame Production Inquiry'
+                        )}&body=${encodeURIComponent(
+                          `Name: ${formData.name || ''}\nCompany: ${formData.company || ''}\n\nMessage:\n${formData.message || ''}`
+                        )}`}
+                        className="text-blue-600 hover:text-blue-700 font-medium underline underline-offset-2 transition"
+                      >
+                        Click to email mypersonalemailboxln@gmail.com
+                      </a>
+                    </p>
+                  </div>
+
                 </form>
               )}
 
